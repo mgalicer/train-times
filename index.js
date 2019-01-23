@@ -8,39 +8,76 @@ const express = require('express');
 const app = express();
 const port = 3000;
 
+let stops;
+let lineToFeedId = buildFeedIds();
+buildStops().then(function(data) {
+  stops = data;
+});
+
 //Route to get Mari's train time
-app.get('/', async (req, res) => {
-  let time = await getNextTrainTime();
-  res.send(time.toString());
-})
+app.get('/mari-train-time', async (req, res) => {
+  try {
+    let times = await getNextTrainTimes("C", "A44", "N");
+    if(times[0] < 0 && times[1]) {
+      res.send(times[1].toString());
+    }
+    else {
+      res.send(times[0].toString());
+    }
+  }
+  catch(e) {
+    console.log(e);
+    res.send(e);
+  }
+});
 
-//Route to get next train times, where stations are stored on req.body.stations
+// Route to get next train times, where stations are stored on req.body.stations
+//TODO: Test next train times with front end http request
 app.get('/next-train-times', async (req, res) => {
-  let stations = req.body.stations;
-  // let time = await getNextTrainTime(); TODO: Replace with general getNextTrainTime function
-  res.send(time.toString());
-})
+  try {
+    let line = req.body.line;
+    let station = req.body.station;
+    let direction = req.body.direction;
+    let times = await getNextTrainTimes(line, station, direction);
+    res.send(times);
+  }
+  catch(e) {
+    console.log(e);
+    res.send(e)
+  }
+});
 
-app.listen(port, () => console.log(`Example app listening on port ${port}!`))
+app.listen(port, () => console.log(`App listening on port ${port}!`))
 
-function getNextTrainTime() {
+function getNextTrainTimes(trainLine, stopId, direction) {
   return new Promise(function(resolve, reject) {
+    let errorMessage = validateInputs(trainLine, stopId, direction);
+    let feedId = lineToFeedId[trainLine];
+    if(errorMessage.length !== 0) {
+      reject(errorMessage);
+      return;
+    }
     let requestSettings = {
       method: 'GET',
-      url: `http://datamine.mta.info/mta_esi.php?key=${process.env.MTA_KEY}&feed_id=26`,
+      url: `http://datamine.mta.info/mta_esi.php?key=${process.env.MTA_KEY}&feed_id=${feedId}`,
       encoding: null
     };
 
     request(requestSettings, (error, response, body) => {
+      console.log("Made requst to GTFS data");
+
       if (!error && response.statusCode == 200) {
+        console.log("Successful request to GTFS data");
+
         let feed = GtfsRealtimeBindings.FeedMessage.decode(body);
         let arrivalTimes = [];
+
         feed.entity.forEach((entity) => {
-          
           let tripUpdate = entity.trip_update;
-          if (tripUpdate && tripUpdate.trip.route_id ==="C") {
+          if (tripUpdate && tripUpdate.trip.route_id === trainLine){
             tripUpdate.stop_time_update.forEach((update) => {
-                if(update.stop_id === "A44N") {
+                if(update.stop_id === stopId + direction) {
+                  console.log("Found stop information in GTFS data");
                   let time = update.arrival.time.low*1000;
                   arrivalTimes.push(time);
                 }
@@ -48,18 +85,27 @@ function getNextTrainTime() {
             }
             
           });
+
         arrivalTimes.sort();
         let deltaTimes = formatArrivalTimes(arrivalTimes);
-        if(deltaTimes[0] < 0 && deltaTimes[1]) {
-          resolve(deltaTimes[1]);
-        }
-        else {
-          resolve(deltaTimes[0]);
-        }
+        resolve(deltaTimes);
       }
     });
-    
   });
+}
+
+function validateInputs(trainLine, stopId, direction) {
+  let feedId = lineToFeedId[trainLine];
+  if(!feedId) {
+    return "Invalid train line provided." ;
+  }
+  if(!stops[stopId]) {
+    return "Invalid stop id provided.";
+  }
+  if(direction !== "N" && direction !== "S" && !direction) {
+    return "Invalid direction.";
+  }
+  return "";
 }
 
 function formatArrivalTimes(arrivalTimes) {
@@ -93,6 +139,7 @@ function buildStops() {
         })
         .on('end',function() {
           resolve(stops);
+          return;
         });
   });
 }
@@ -119,9 +166,5 @@ function buildFeedIds() {
   lineToFeedId["SIR"] = 11;
   lineToFeedId["G"] = 31;
   lineToFeedId["7"] = 51;
-
   return lineToFeedId;
 }
-
-let stops = buildStops();
-let lineToFeedId = buildFeedIds();
