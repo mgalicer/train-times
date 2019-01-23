@@ -9,8 +9,10 @@
   "author": "Mari Galicer",
   "license": "MIT",
   "dependencies": {
+    "csv-parse": "^4.3.1",
     "dotenv": "^6.2.0",
     "express": "^4.16.4",
-    "gtfs-realtime-bindings": "0.0.4"
+    "gtfs-realtime-bindings": "0.0.4",
+    "request": "^2.88.0"
   }
 }
