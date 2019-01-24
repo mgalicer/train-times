@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node index.js"
+    "test": "jest",
+    "start": "node index.js"
   },
   "author": "Mari Galicer",
   "license": "MIT",
@@ -13,6 +14,10 @@
     "dotenv": "^6.2.0",
     "express": "^4.16.4",
     "gtfs-realtime-bindings": "0.0.4",
-    "request": "^2.88.0"
+    "request": "^2.88.0",
+    "xmlhttprequest": "^1.8.0"
+  },
+  "devDependencies": {
+    "jest": "^23.6.0"
   }
 }
