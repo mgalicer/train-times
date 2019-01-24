@@ -1,4 +1,4 @@
-const fs = require('fs'); 
+const fs = require('fs');
 const parse = require('csv-parse')
 const GtfsRealtimeBindings = require('gtfs-realtime-bindings');
 const request = require('request');
@@ -6,7 +6,7 @@ const dotEnv = require('dotenv').config();
 
 const express = require('express');
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 80;
 
 let stops;
 let lineToFeedId = buildFeedIds();
@@ -33,11 +33,11 @@ app.get('/mari-train-time', async (req, res) => {
 
 // Route to get next train times, where stations are stored on req.body.stations
 //TODO: Test next train times with front end http request
-app.get('/next-train-times', async (req, res) => {
+app.get('/next-train-times/:line/:station/:direction', async (req, res) => {
   try {
-    let line = req.body.line;
-    let station = req.body.station;
-    let direction = req.body.direction;
+    let line = req.params.line;
+    let station = req.params.station;
+    let direction = req.params.direction;
     let times = await getNextTrainTimes(line, station, direction);
     res.send(times);
   }
@@ -64,11 +64,7 @@ function getNextTrainTimes(trainLine, stopId, direction) {
     };
 
     request(requestSettings, (error, response, body) => {
-      console.log("Made requst to GTFS data");
-
       if (!error && response.statusCode == 200) {
-        console.log("Successful request to GTFS data");
-
         let feed = GtfsRealtimeBindings.FeedMessage.decode(body);
         let arrivalTimes = [];
 
@@ -77,13 +73,12 @@ function getNextTrainTimes(trainLine, stopId, direction) {
           if (tripUpdate && tripUpdate.trip.route_id === trainLine){
             tripUpdate.stop_time_update.forEach((update) => {
                 if(update.stop_id === stopId + direction) {
-                  console.log("Found stop information in GTFS data");
                   let time = update.arrival.time.low*1000;
                   arrivalTimes.push(time);
                 }
               })
             }
-            
+
           });
 
         arrivalTimes.sort();
@@ -113,9 +108,9 @@ function formatArrivalTimes(arrivalTimes) {
   arrivalTimes.forEach((time) => {
     let arrival = new Date(time);
     let deltaTime = Math.floor((arrival - Date.now())/60000);
-    deltaTimes.push(deltaTime);
+    if(deltaTime > 0) deltaTimes.push(deltaTime);
   });
-  
+
   return deltaTimes;
 }
 
