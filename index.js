@@ -18,16 +18,17 @@ buildStops().then(function(data) {
 app.get('/mari-train-time', async (req, res) => {
   try {
     let times = await getNextTrainTimes("C", "A44", "N");
-    if(times.length === 0) {
-      res.send((-1).toString());
-      return;
-    }
+    let time;
+    if(times.length === 0) time = `{${(-1).toString()}}`;
 
     if(times[0] < 0 && times[1]) {
-      res.send(times[1].toString());
+      time = `{${times[1].toString()}}`;
     } else {
-      res.send(times[0].toString());
+      time = `{${times[0].toString()}}`;
     }
+
+    res.send(time);
+    return;
   } catch(e) {
     console.log(e);
     res.send(e);
