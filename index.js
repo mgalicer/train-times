@@ -50,6 +50,26 @@ app.get('/next-train-times/:line/:station/:direction', async (req, res) => {
   }
 });
 
+app.get('/line-to-feed-ids', async (req, res) => {
+  try {
+    res.send(lineToFeedId);
+  }
+  catch(e) {
+    console.log(e);
+    res.send(e)
+  }
+});
+
+app.get('/stops', async (req, res) => {
+  try {
+    res.send(stops);
+  }
+  catch(e) {
+    console.log(e);
+    res.send(e)
+  }
+});
+
 app.listen(port, () => console.log(`App listening on port ${port}!`))
 
 function getNextTrainTimes(trainLine, stopId, direction) {
