@@ -17,7 +17,7 @@ buildStops().then(function(data) {
 //Route to get Mari's train time
 app.get('/mari-train-time', async (req, res) => {
   try {
-    let times = await getNextTrainTimes("C", "A44", "N");
+    let times = getNextTrainTimes("C", "A44", "N");
     let time;
     if(times.length === 0) time = `{${(-1).toString()}}`;
 
@@ -73,41 +73,52 @@ app.get('/stops', async (req, res) => {
 
 app.listen(port, () => console.log(`App listening on port ${port}!`))
 
-function getNextTrainTimes(trainLine, stopId, direction) {
-  return new Promise(function(resolve, reject) {
+async function getNextTrainTimes(trainLine, stopId, direction) {
+
     let errorMessage = validateInputs(trainLine, stopId, direction);
     let feedId = lineToFeedId[trainLine];
     if(errorMessage.length !== 0) {
-      reject(errorMessage);
-      return;
+      return errorMessage;
     }
-    let requestSettings = {
-      method: 'GET',
-      url: `http://datamine.mta.info/mta_esi.php?key=${process.env.MTA_KEY}&feed_id=${feedId}`,
-      encoding: null
-    };
 
+    let body = await makeRequest(trainLine);
+    let feed = GtfsRealtimeBindings.FeedMessage.decode(body);
+    let arrivalTimes = [];
+    feed.entity.forEach((entity) => {
+      let tripUpdate = entity.trip_update;
+      if (tripUpdate && tripUpdate.trip.route_id === trainLine){
+        tripUpdate.stop_time_update.forEach((update) => {
+            if(update.stop_id === stopId + direction) {
+              let time = update.arrival.time.low*1000;
+              arrivalTimes.push(time);
+            }
+          })
+        }
+
+      });
+
+    arrivalTimes.sort();
+    let deltaTimes = formatArrivalTimes(arrivalTimes);
+
+    return deltaTimes;
+
+}
+
+
+function makeRequest(trainLine) {
+  let feedId = lineToFeedId[trainLine];
+  let requestSettings = {
+    method: 'GET',
+    url: `http://datamine.mta.info/mta_esi.php?key=${process.env.MTA_KEY}&feed_id=${feedId}`,
+    encoding: null
+  };
+
+  return new Promise(function(resolve, reject) {
     request(requestSettings, (error, response, body) => {
       if (!error && response.statusCode == 200) {
-        let feed = GtfsRealtimeBindings.FeedMessage.decode(body);
-        let arrivalTimes = [];
-
-        feed.entity.forEach((entity) => {
-          let tripUpdate = entity.trip_update;
-          if (tripUpdate && tripUpdate.trip.route_id === trainLine){
-            tripUpdate.stop_time_update.forEach((update) => {
-                if(update.stop_id === stopId + direction) {
-                  let time = update.arrival.time.low*1000;
-                  arrivalTimes.push(time);
-                }
-              })
-            }
-
-          });
-
-        arrivalTimes.sort();
-        let deltaTimes = formatArrivalTimes(arrivalTimes);
-        resolve(deltaTimes);
+        resolve(body);
+      } else {
+        reject(error);
       }
     });
   });
