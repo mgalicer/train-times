@@ -30,7 +30,7 @@ app.get('/mari-train-time', async (req, res) => {
     res.send(time);
   } catch(e) {
     console.log(e);
-    res.send(-1);
+    res.send('Error');
   }
 });
 
@@ -46,7 +46,7 @@ app.get('/next-train-times/:line/:station/:direction', async(req, res) => {
   }
   catch(e) {
     console.log(e);
-    res.send(-1);
+    res.send('Error');
   }
 });
 
@@ -56,7 +56,7 @@ app.get('/line-to-feed-ids', (req, res) => {
   }
   catch(e) {
     console.log(e);
-    res.send(-1)
+    res.send('Error')
   }
 });
 
@@ -66,9 +66,18 @@ app.get('/stops', (req, res) => {
   }
   catch(e) {
     console.log(e);
-    res.send(-1)
+    res.send('Error')
   }
 });
+
+app.get('*', (req, res) => {
+  res.status(404).send('Error');
+})
+
+app.use(function (err, req, res, next) {
+  console.error(err.stack)
+  res.status(500).send('Error')
+})
 
 app.listen(port, () => console.log(`App listening on port ${port}!`))
 
