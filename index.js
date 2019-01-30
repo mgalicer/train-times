@@ -83,27 +83,31 @@ async function getNextTrainTimes(trainLine, stopId, direction) {
 
     let body = await makeRequest(trainLine);
     let feed = GtfsRealtimeBindings.FeedMessage.decode(body);
-    let arrivalTimes = [];
-    feed.entity.forEach((entity) => {
-      let tripUpdate = entity.trip_update;
-      if (tripUpdate && tripUpdate.trip.route_id === trainLine){
-        tripUpdate.stop_time_update.forEach((update) => {
-            if(update.stop_id === stopId + direction) {
-              let time = update.arrival.time.low*1000;
-              arrivalTimes.push(time);
-            }
-          })
-        }
-
-      });
-
-    arrivalTimes.sort();
+    let arrivalTimes = parseArrivalTimes(feed, trainLine, stopId, direction);
     let deltaTimes = formatArrivalTimes(arrivalTimes);
 
     return deltaTimes;
 
 }
 
+function parseArrivalTimes(feed, trainLine, stopId, direction) {
+  let arrivalTimes = [];
+  feed.entity.forEach((entity) => {
+    let tripUpdate = entity.trip_update;
+    if (tripUpdate && tripUpdate.trip.route_id === trainLine){
+      tripUpdate.stop_time_update.forEach((update) => {
+          if(update.stop_id === stopId + direction) {
+            let time = update.arrival.time.low*1000;
+            arrivalTimes.push(time);
+          }
+        })
+      }
+
+    });
+
+  arrivalTimes.sort();
+  return arrivalTimes;
+}
 
 function makeRequest(trainLine) {
   let feedId = lineToFeedId[trainLine];
