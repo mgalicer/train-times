@@ -17,7 +17,7 @@ buildStops().then(function(data) {
 //Route to get Mari's train time
 app.get('/mari-train-time', async (req, res) => {
   try {
-    let times = getNextTrainTimes("C", "A44", "N");
+    let times = await getNextTrainTimes("C", "A44", "N");
     let time;
     if(times.length === 0) time = `{${(-1).toString()}}`;
 
@@ -28,16 +28,15 @@ app.get('/mari-train-time', async (req, res) => {
     }
 
     res.send(time);
-    return;
   } catch(e) {
     console.log(e);
-    res.send(e);
+    res.send(-1);
   }
 });
 
 // Route to get next train times, where stations are stored on req.body.stations
 //TODO: Test next train times with front end http request
-app.get('/next-train-times/:line/:station/:direction', async (req, res) => {
+app.get('/next-train-times/:line/:station/:direction', async(req, res) => {
   try {
     let line = req.params.line;
     let station = req.params.station;
@@ -47,47 +46,45 @@ app.get('/next-train-times/:line/:station/:direction', async (req, res) => {
   }
   catch(e) {
     console.log(e);
-    res.send(e)
+    res.send(-1);
   }
 });
 
-app.get('/line-to-feed-ids', async (req, res) => {
+app.get('/line-to-feed-ids', (req, res) => {
   try {
     res.send(lineToFeedId);
   }
   catch(e) {
     console.log(e);
-    res.send(e)
+    res.send(-1)
   }
 });
 
-app.get('/stops', async (req, res) => {
+app.get('/stops', (req, res) => {
   try {
     res.send(stops);
   }
   catch(e) {
     console.log(e);
-    res.send(e)
+    res.send(-1)
   }
 });
 
 app.listen(port, () => console.log(`App listening on port ${port}!`))
 
 async function getNextTrainTimes(trainLine, stopId, direction) {
+  let errorMessage = validateInputs(trainLine, stopId, direction);
+  let feedId = lineToFeedId[trainLine];
+  if(errorMessage.length !== 0) {
+    return errorMessage;
+  }
 
-    let errorMessage = validateInputs(trainLine, stopId, direction);
-    let feedId = lineToFeedId[trainLine];
-    if(errorMessage.length !== 0) {
-      return errorMessage;
-    }
+  let body = await makeRequest(trainLine)
+  let feed = GtfsRealtimeBindings.FeedMessage.decode(body);
+  let arrivalTimes = parseArrivalTimes(feed, trainLine, stopId, direction);
+  let deltaTimes = formatArrivalTimes(arrivalTimes);
 
-    let body = await makeRequest(trainLine);
-    let feed = GtfsRealtimeBindings.FeedMessage.decode(body);
-    let arrivalTimes = parseArrivalTimes(feed, trainLine, stopId, direction);
-    let deltaTimes = formatArrivalTimes(arrivalTimes);
-
-    return deltaTimes;
-
+  return deltaTimes;
 }
 
 function parseArrivalTimes(feed, trainLine, stopId, direction) {
