@@ -14,26 +14,6 @@ buildStops().then(function(data) {
   stops = data;
 });
 
-//Route to get Mari's train time
-app.get('/mari-train-time', async (req, res) => {
-  try {
-    let times = await getNextTrainTimes("C", "A44", "N");
-    let time;
-    if(times.length === 0) time = `{${(-1).toString()}}`;
-
-    if(times[0] < 0 && times[1]) {
-      time = `{${times[1].toString()}}`;
-    } else {
-      time = `{${times[0].toString()}}`;
-    }
-
-    res.send(time);
-  } catch(e) {
-    console.log(e);
-    res.send('Error');
-  }
-});
-
 // Route to get next train times, where stations are stored on req.body.stations
 //TODO: Test next train times with front end http request
 app.get('/next-train-times/:line/:station/:direction', async(req, res) => {
@@ -153,6 +133,7 @@ function formatArrivalTimes(arrivalTimes) {
   arrivalTimes.forEach((time) => {
     let arrival = new Date(time);
     let deltaTime = Math.floor((arrival - Date.now())/60000);
+    console.log((arrival - Date.now())/60000)
     if(deltaTime > 0) deltaTimes.push(deltaTime);
   });
 
