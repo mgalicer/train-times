@@ -27,6 +27,18 @@ app.get('/next-train-times/:line/:station/:direction', async(req, res) => {
   }
 });
 
+app.get('/next-bus-times/:line/:stop', async(req, res) => {
+  try {
+    let {line, stop} = req.params;
+    let times = await trainUtils.getNextBusTimes(line, stop);
+    res.send(times);
+  }
+  catch(e) {
+    console.log(e);
+    res.send('Error');
+  }
+});
+
 app.get('/line-to-feed-ids', (req, res) => {
   try {
     res.send(lineToFeedId);
