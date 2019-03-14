@@ -23,6 +23,45 @@ function buildFeedData() {
   return lineToFeedId;
 }
 
+async function getNextBusTimes(busLine, stopId) {
+  let requestSettings = {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json'
+    },
+    url: `http://bustime.mta.info/api/siri/stop-monitoring.json?key=${process.env.MTA_BUS_KEY}&MonitoringRef=${stopId}&LineRef=MTA NYCT_${busLine}`,
+    encoding: null
+  };
+
+  const data = await new Promise(function(resolve, reject) {
+    request(requestSettings, (error, response, body) => {
+      if (error) {
+        return reject(error)
+      }
+
+      if (response.statusCode != 200) {
+        return reject(new Error('unexpected status code ' + response.statusCode))
+      }
+
+      if (!/json/.test(response.headers['content-type'])) {
+        return reject(new Error('unexpected content type'))
+      }
+
+      resolve(JSON.parse(body.toString()));
+    });
+  });
+
+  const departTimes = data.Siri.ServiceDelivery.StopMonitoringDelivery.map((s) => {
+    return s.MonitoredStopVisit.map((m) => {
+      return m.MonitoredVehicleJourney.MonitoredCall.ExpectedDepartureTime
+    })
+  }).reduce((a, b) => [...a, ...b], []).filter(Boolean)
+
+  let deltaTimes = formatArrivalTimes(departTimes);
+
+  return deltaTimes
+}
+
 async function getNextTrainTimes(trainLine, stopId, direction) {
   let errorMessage = validateInputs(trainLine, stopId, direction);
   let feedId = lineToFeedId[trainLine];
@@ -154,6 +193,7 @@ function buildFeedIds() {
 
 module.exports = {
   getNextTrainTimes: getNextTrainTimes,
+  getNextBusTimes: getNextBusTimes,
   parseArrivalTimes: parseArrivalTimes,
   makeRequest: makeRequest,
   validateInputs: validateInputs,
